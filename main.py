@@ -104,8 +104,8 @@ def main():
                 wolf.remove(w)
             grid.update_cell(k, l, 'W')
         
-        nb_sheep = sum(row.count('s') + row.count('S') for row in current_matrix)
-        nb_wolves = sum(row.count('w') + row.count('W') for row in current_matrix)
+        nb_sheep = sum(row.count('s') + row.count('S') for row in grid)
+        nb_wolves = sum(row.count('w') + row.count('W') for row in grid)
 
         # Dessin
         screen.fill((0, 0, 0))
