@@ -1,6 +1,8 @@
 import entities
 import parameters
 import random as rd
+from test_youen import *
+
 
 def main():
     # Création des entités :
@@ -39,8 +41,22 @@ def main():
     grid = entities.Grid(width=parameters.GRID_SIZE, height=parameters.GRID_SIZE)
 
     nb_tours = 0
-    while nb_tours < parameters.MAX_TURNS:
+    running = True
+    
+    while running and nb_tours < parameters.MAX_TURNS:
+        # Events
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                running = False
+            elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_q:
+                    running = False
+        nb_sheep = sum(row.count('s') + row.count('S') for row in grid)
+        nb_wolves = sum(row.count('w') + row.count('W') for row in grid)
 
+        
+        draw_grid(grid)
+        draw_stats_panel(nb_tours, nb_sheep, nb_wolves)
         # --- Mise à jour de l’état de l’herbe ---
         for y in range(parameters.GRID_SIZE):
             for x in range(parameters.GRID_SIZE):
@@ -131,5 +147,9 @@ def main():
             grid.update_cell(k, l, 'W')         # Place le loup sur la grille
 
         nb_tours += 1
+    pg.display.flip()
+    clock.tick(1) 
 
+    pg.quit()
+    sys.exit()
 main()
