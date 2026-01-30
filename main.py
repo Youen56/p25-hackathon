@@ -140,7 +140,7 @@ def main():
                 grid_obj.update_cell(x, y, '.')
 
         nb_tours += 1
-        clock.tick(2) # Vitesse
+        clock.tick(4) # Vitesse
 
     pg.quit()
 
