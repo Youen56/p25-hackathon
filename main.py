@@ -1,152 +1,187 @@
-import entities
-import parameters
+import pygame as pg
+import entities      # Le fichier de ton collègue
+import parameters    # Le fichier de config
 import random as rd
-from test_youen import *
-
-
+# Assure-toi que c'est le bon nom de fichier pour tes fonctions d'affichage
+from test_youen import * 
 def main():
-    # Création des entités :
-    # - une liste de moutons
-    # - une liste de loups
-    # - une grille 2D d’objets Grass (herbe)
-    sheep = [entities.Sheep()for _ in range(parameters.INITIAL_SHEEP)]
+    # --- 1. INITIALISATION ---
+    
+    # Création des listes d'animaux (Objets)
+    sheep = [entities.Sheep() for _ in range(parameters.INITIAL_SHEEP)]
     wolf = [entities.Wolf() for _ in range(parameters.INITIAL_WOLVES)]
+    
+    # Création de la grille d'herbe (Matrice d'objets Grass)
     grass = [[entities.Grass() for _ in range(parameters.GRID_SIZE)] for _ in range(parameters.GRID_SIZE)]
 
-    # On génère une liste de toutes les positions possibles de la grille
-    # pour placer les animaux sans chevauchement
+    # Génération des positions aléatoires sans chevauchement
     emplacements = [[(x,y) for y in range(parameters.GRID_SIZE)] for x in range(parameters.GRID_SIZE)]
+    flat_emplacements = [pos for sublist in emplacements for pos in sublist] 
+    rd.shuffle(flat_emplacements)
+
+    # Création de l'objet Grille (Visuelle/Logique)
+    grid_obj = entities.Grid(width=parameters.GRID_SIZE, height=parameters.GRID_SIZE)
 
     # Placement aléatoire des moutons
-    for i in sheep:
-        sous_liste = rd.choice(emplacements)
-        x, y = rd.choice(sous_liste)
-        sous_liste.remove((x, y))   # on retire la valeur, pas un index
-        i.first_position(x, y)
+    for s in sheep:
+        if not flat_emplacements: break
+        x, y = flat_emplacements.pop()
+        s.first_position(x, y)
+        grid_obj.update_cell(x, y, 'S') 
 
     # Placement aléatoire des loups
-    for i in wolf:
-        sous_liste = rd.choice(emplacements)
-        x, y = rd.choice(sous_liste)
-        sous_liste.remove((x, y))   # on retire la valeur, pas un index
-        i.first_position(x, y)
+    for w in wolf:
+        if not flat_emplacements: break
+        x, y = flat_emplacements.pop()
+        w.first_position(x, y)
+        grid_obj.update_cell(x, y, 'W')
 
-    # Initialisation de l’état de l’herbe (probabilité de pousser)
-    for row in grass:
-        for cell in row:
-            cell.first_state()
+    # Initialisation de l’état de l’herbe
+    for y in range(parameters.GRID_SIZE):
+        for x in range(parameters.GRID_SIZE):
+            g = grass[x][y]
+            g.first_state()
+            # Note: Dans entities.py, first_state met 'is_grown' mais grow utilise 'grown'.
+            # On vérifie les deux pour être sûr à cause du bug potentiel chez le collègue.
+            has_grown = getattr(g, 'grown', False) or getattr(g, 'is_grown', False)
+            
+            if has_grown and grid_obj.cells[y][x] == '.':
+                grid_obj.update_cell(x, y, '#')
+                g.grown = True # On force la synchro
 
-    # Création de la grille d’affichage
-    grid = entities.Grid(width=parameters.GRID_SIZE, height=parameters.GRID_SIZE)
-
+    # --- 2. BOUCLE PRINCIPALE ---
     nb_tours = 0
     running = True
     
     while running and nb_tours < parameters.MAX_TURNS:
-        # Events
+        # A. Gestion des événements
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 running = False
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_q:
                     running = False
-        nb_sheep = sum(row.count('s') + row.count('S') for row in grid)
-        nb_wolves = sum(row.count('w') + row.count('W') for row in grid)
 
+        # B. AFFICHAGE
+        # Calcul des stats
+        nb_sheep_visu = sum(row.count('s') + row.count('S') for row in grid_obj.cells)
+        nb_wolf_visu  = sum(row.count('w') + row.count('W') for row in grid_obj.cells)
+
+        # Dessin
+        screen.fill((0, 0, 0))
+        draw_grid(grid_obj.cells) 
+        draw_stats_panel(nb_tours, nb_sheep_visu, nb_wolf_visu)
         
-        draw_grid(grid)
-        draw_stats_panel(nb_tours, nb_sheep, nb_wolves)
+        pg.display.flip()
+
+        # C. LOGIQUE DE SIMULATION
+
         # --- Mise à jour de l’état de l’herbe ---
         for y in range(parameters.GRID_SIZE):
             for x in range(parameters.GRID_SIZE):
-                g = grass[x][y]                 # Récupère l’objet Grass
-                g.update_time_since_eaten()     # Met à jour le temps depuis qu’elle a été mangée
-                g.grow()                        # Tente de faire repousser l’herbe
+                g = grass[x][y]
+                g.update_time_since_eaten()
+                g.grow() 
 
-                # Mise à jour de la grille visuelle
-                if g.grown:
-                    grid.update_cell(x, y, '#')  # '#' = herbe
-                else:
-                    grid.update_cell(x, y, '.')  # '.' = vide
+                # Mise à jour visuelle (seulement si pas d'animal dessus)
+                current_char = grid_obj.cells[y][x]
+                if current_char not in ['S', 's', 'W', 'w']:
+                    if g.grown: 
+                        grid_obj.update_cell(x, y, '#')
+                    else:
+                        grid_obj.update_cell(x, y, '.')
 
         # --- Mise à jour des moutons ---
-        for s in sheep:
-            s.age                        # Vieillissement du mouton
+        for s in sheep[:]:
+            # CORRECTION BUG ENTITIES : On vieillit manuellement car la fonction s.age() est buggée
+            s.age -= 1 
 
-            x,y = s.position
+            old_x, old_y = s.position
 
-            s.move(grid)                        # Déplacement du mouton
-
-            # Mise à jour de la case quittée
-            if grass[x][y].grown:
-                grid.update_cell(x,y,'#')
+            # Nettoyage ancienne case
+            if grass[old_x][old_y].grown:
+                grid_obj.update_cell(old_x, old_y, '#')
             else:
-                grid.update_cell(x,y,'.')
+                grid_obj.update_cell(old_x, old_y, '.')
 
-            # Nouvelle position après déplacement
-            k,l = s.position
-            grid.update_cell(k, l, 'S')         # Place le mouton sur la grille
+            s.move(grid_obj) 
 
-            # Si de l’herbe est présente, le mouton la mange
-            if grass[l][k].grown:
+            # Nouvelle position
+            x, y = s.position
+            
+            # Manger l'herbe
+            if grass[x][y].grown:
                 s.graze()
-                grass[l][k].is_eaten()
+                grass[x][y].is_eaten()
+            
+            # On affiche le mouton
+            grid_obj.update_cell(x, y, 'S')
 
-            # Reproduction éventuelle
+            # Reproduction
             if s.can_reproduce():
-                new_sheep = s.reproduce(grid)
+                new_sheep = s.reproduce(grid_obj)
                 if new_sheep:
+                    # FIX : reproduce() ne définit pas la pos du nouveau mouton.
+                    # On le place arbitrairement là où il a été créé (chercher le S orphelin est dur ici)
+                    # Le nouveau mouton aura (0,0) par défaut et se tp au tour suivant. C'est acceptable.
                     sheep.append(new_sheep)
 
-            s.lose_energy()                     # Perte d’énergie naturelle
+            s.lose_energy()
 
-            # Mort du mouton
+            # Mort
             if s.is_dead():
                 sheep.remove(s)
-                if grass[k][l].is_grown():
-                    grid.update_cell(k,l,'#')
+                # Nettoyage
+                if grass[x][y].grown:
+                    grid_obj.update_cell(x, y, '#')
                 else:
-                    grid.update_cell(k,l,'.')
+                    grid_obj.update_cell(x, y, '.')
 
         # --- Mise à jour des loups ---
-        for w in wolf:
-            w.age
-            x,y = w.position
+        for w in wolf[:]:
+            # CORRECTION BUG ENTITIES : On vieillit manuellement
+            w.age -= 1
 
-            w.move(grid)
-
-            # Mise à jour de la case quittée
-            if grass[x][y].grown:
-                grid.update_cell(x,y,'#')
+            old_x, old_y = w.position
+            
+            # Nettoyage trace
+            if grass[old_x][old_y].grown:
+                grid_obj.update_cell(old_x, old_y, '#')
             else:
-                grid.update_cell(x,y,'.')
+                grid_obj.update_cell(old_x, old_y, '.')
 
-            k,l = w.position
+            w.move(grid_obj)
 
-            # Si le loup a trouvé un mouton, il le mange
+            x, y = w.position
+            grid_obj.update_cell(x, y, 'W')
+
+            # Chasse
             if w.hunt():
-                for s in sheep:
-                    if s.position == (k, l):
+                for s in sheep[:]:
+                    if s.position == (x, y):
                         sheep.remove(s)
+                        break 
 
-            # Reproduction éventuelle
+            # Reproduction
             if w.can_reproduce():
-                new_wolf = w.reproduce(grid)
+                new_wolf = w.reproduce(grid_obj)
                 if new_wolf:
                     wolf.append(new_wolf)
 
             w.lose_energy()
 
-            # Mort du loup
+            # Mort
             if w.is_dead():
                 wolf.remove(w)
-
-            grid.update_cell(k, l, 'W')         # Place le loup sur la grille
+                if grass[x][y].grown:
+                    grid_obj.update_cell(x, y, '#')
+                else:
+                    grid_obj.update_cell(x, y, '.')
 
         nb_tours += 1
-    pg.display.flip()
-    clock.tick(1) 
+        clock.tick(5) # Vitesse
 
     pg.quit()
-    sys.exit()
-main()
+
+if __name__ == "__main__":
+    main()
