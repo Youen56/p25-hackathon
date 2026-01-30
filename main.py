@@ -1,5 +1,8 @@
 import entities
 import parameters
+from Youen import *
+from test_youen import *
+
 import random as rd
 
 def main():
@@ -26,11 +29,20 @@ def main():
                 grass_patch.first_state()
 
     grid = entities.Grid(width=parameters.GRID_SIZE, height=parameters.GRID_SIZE)
-
-
     nb_tours = 0
-    while nb_tours < parameters.MAX_TURNS:
-        # Mettre à jour l'état de la grille
+
+
+    running = True
+    while running and nb_tours < parameters.MAX_TURNS:
+        # Events
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                running = False
+            elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_q:
+                    running = False
+        draw_grid(grid)
+    # Mettre à jour l'état de la grille
         for y in range(parameters.GRID_SIZE):
             for x in range(parameters.GRID_SIZE):
                 g = grass[x][y]
@@ -91,6 +103,19 @@ def main():
             if w.is_dead():
                 wolf.remove(w)
             grid.update_cell(k, l, 'W')
+        
+        nb_sheep = sum(row.count('s') + row.count('S') for row in current_matrix)
+        nb_wolves = sum(row.count('w') + row.count('W') for row in current_matrix)
+
+        # Dessin
+        screen.fill((0, 0, 0))
+        draw_stats_panel(nb_tours, nb_sheep, nb_wolves)
+        
+        pg.display.flip()
+        clock.tick(1) 
+
+
+
         nb_tours += 1
 
     # Print initial states
