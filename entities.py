@@ -12,7 +12,7 @@ class Sheep:
         self.reproduction_threshold = parameters.SHEEP_REPRODUCTION_THRESHOLD
         
         # Énergie gagnée lorsqu'il mange de l'herbe
-        self.energy_gain_from_grass = parameters.SHEEP_ENERGY_GAIN_FROM_GRASS
+        self.energy_gain_from_grass = parameters.SHEEP_ENERGY_FROM_GRASS
         
         # Énergie perdue à chaque tour
         self.energy_loss_per_turn = parameters.SHEEP_ENERGY_LOSS_PER_TURN
@@ -52,8 +52,8 @@ class Sheep:
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < parameters.GRID_SIZE and 0 <= ny < parameters.GRID_SIZE:
-                    if grid[nx][ny] == '.':  # Case vide
-                        grid[nx][ny] = 'S'   # Place un nouveau mouton
+                    if grid.cells[ny][nx] == '.':  # Case vide
+                        grid.cells[ny][nx] = 'S'   # Place un nouveau mouton
                         break
             
             # Coût énergétique de la reproduction
@@ -78,7 +78,7 @@ class Sheep:
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
             if 0 <= nx < parameters.GRID_SIZE and 0 <= ny < parameters.GRID_SIZE:
-                if grid[nx][ny] == '.' or grid[nx][ny] == '#':  # vide ou herbe
+                if grid.cells[ny][nx] == '.' or grid.cells[ny][nx] == '#':
                     cases_libres.append((nx, ny))
 
         # Choix aléatoire d’une case libre
@@ -86,9 +86,9 @@ class Sheep:
             x, y = rd.choice(cases_libres)
 
         # Si le mouton marche sur de l’herbe, il la mange
-        if grid[x][y] == '#':
+        if grid.cells[y][x] == '#':
             self.energy += parameters.SHEEP_ENERGY_FROM_GRASS
-            grid[x][y] = '.'  # L’herbe disparaît
+            grid.cells[y][x] = '.'  # L’herbe disparaît
 
         # Mise à jour de la position
         self.position = (x,y)
@@ -98,7 +98,7 @@ class Sheep:
         self.position = (x,y)
 
 class Wolf:
-    def __init__(self,x,y):
+    def __init__(self):
         # Énergie initiale du loup
         self.energy = parameters.WOLF_INITIAL_ENERGY
         
@@ -106,7 +106,7 @@ class Wolf:
         self.reproduction_threshold = parameters.WOLF_REPRODUCTION_THRESHOLD
         
         # Énergie gagnée lorsqu’il mange un mouton
-        self.energy_gain_from_sheep = parameters.WOLF_ENERGY_GAIN_FROM_SHEEP
+        self.energy_gain_from_sheep = parameters.WOLF_ENERGY_FROM_SHEEP
         
         # Énergie perdue à chaque tour
         self.energy_loss_per_turn = parameters.WOLF_ENERGY_LOSS_PER_TURN
@@ -151,8 +151,8 @@ class Wolf:
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < parameters.GRID_SIZE and 0 <= ny < parameters.GRID_SIZE:
-                    if grid[nx][ny] in ['.', '#']:  # case libre ou herbe
-                        grid[nx][ny] = 'W'
+                    if grid.cells[ny][nx] in ['.', '#']:  # case libre ou herbe
+                        grid.cells[ny][nx] = 'W'
                         break
             
             self.energy -= self.reproduction_energy_cost
@@ -173,7 +173,7 @@ class Wolf:
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
             if 0 <= nx < parameters.GRID_SIZE and 0 <= ny < parameters.GRID_SIZE:
-                if grid[nx][ny] == 'S':
+                if grid.cells[ny][nx] == 'S':
                     x, y = nx, ny
                     self.is_sheep = True
                     break
@@ -183,7 +183,7 @@ class Wolf:
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < parameters.GRID_SIZE and 0 <= ny < parameters.GRID_SIZE:
-                    if grid[nx][ny] in ['.', '#']:
+                    if grid.cells[ny][nx] in ['.', '#']:
                         cases_libres.append((nx, ny))
 
             if cases_libres:
@@ -203,7 +203,7 @@ class Grass:
         self.growth_proba = parameters.GRASS_GROWTH_PROBABILITY
         
         # Indique si l’herbe est présente
-        self.is_grown = False
+        self.grown = False
         
         # Temps écoulé depuis qu’elle a été mangée
         self.time_since_eaten = 0
@@ -213,9 +213,9 @@ class Grass:
 
     def grow(self):
         # L’herbe peut repousser aléatoirement
-        if not self.is_grown:
+        if not self.grown:
             if rd.random() < self.growth_proba:
-                self.is_grown = True
+                self.grown = True
                 self.time_since_eaten = 0
                 self.eaten = False
 
@@ -224,13 +224,13 @@ class Grass:
         if self.eaten:
             self.time_since_eaten += 1
             if self.time_since_eaten >= self.regrowth_time:
-                self.is_grown = True
+                self.grown = True
                 self.time_since_eaten = 0
                 self.eaten = False
 
     def is_eaten(self):
         # L’herbe est mangée
-        self.is_grown = False
+        self.grown = False
         self.eaten = True
         self.time_since_eaten = 0
 

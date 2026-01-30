@@ -7,9 +7,9 @@ def main():
     # - une liste de moutons
     # - une liste de loups
     # - une grille 2D d’objets Grass (herbe)
-    sheep = [entities.Sheep(0,0) for _ in range(parameters.INITIAL_SHEEP)]
-    wolf = [entities.Wolf(0,0) for _ in range(parameters.INITIAL_WOLF)]
-    grass = [[[entities.Grass()] for _ in range(parameters.GRID_SIZE)] for _ in range(parameters.GRID_SIZE)]
+    sheep = [entities.Sheep()for _ in range(parameters.INITIAL_SHEEP)]
+    wolf = [entities.Wolf() for _ in range(parameters.INITIAL_WOLVES)]
+    grass = [[entities.Grass() for _ in range(parameters.GRID_SIZE)] for _ in range(parameters.GRID_SIZE)]
 
     # On génère une liste de toutes les positions possibles de la grille
     # pour placer les animaux sans chevauchement
@@ -17,23 +17,22 @@ def main():
 
     # Placement aléatoire des moutons
     for i in sheep:
-        sous_liste = rd.choice(emplacements)   # Choisit une ligne aléatoire
-        x, y = rd.choice(sous_liste)           # Choisit une position dans cette ligne
-        emplacements[x].pop(y)                 # Retire la position pour éviter les doublons
-        i.first_position(x,y)
+        sous_liste = rd.choice(emplacements)
+        x, y = rd.choice(sous_liste)
+        sous_liste.remove((x, y))   # on retire la valeur, pas un index
+        i.first_position(x, y)
 
     # Placement aléatoire des loups
     for i in wolf:
         sous_liste = rd.choice(emplacements)
         x, y = rd.choice(sous_liste)
-        emplacements[x].pop(y)
-        i.first_position(x,y)
+        sous_liste.remove((x, y))   # on retire la valeur, pas un index
+        i.first_position(x, y)
 
     # Initialisation de l’état de l’herbe (probabilité de pousser)
     for row in grass:
         for cell in row:
-            for grass_patch in cell:
-                grass_patch.first_state()
+            cell.first_state()
 
     # Création de la grille d’affichage
     grid = entities.Grid(width=parameters.GRID_SIZE, height=parameters.GRID_SIZE)
@@ -49,35 +48,33 @@ def main():
                 g.grow()                        # Tente de faire repousser l’herbe
 
                 # Mise à jour de la grille visuelle
-                if g.is_grown():
+                if g.grown:
                     grid.update_cell(x, y, '#')  # '#' = herbe
                 else:
                     grid.update_cell(x, y, '.')  # '.' = vide
 
         # --- Mise à jour des moutons ---
         for s in sheep:
-            s.age()                             # Vieillissement du mouton
+            s.age                        # Vieillissement du mouton
 
             x,y = s.position
 
             s.move(grid)                        # Déplacement du mouton
 
             # Mise à jour de la case quittée
-            if grass[x][y].is_grown():
+            if grass[x][y].grown:
                 grid.update_cell(x,y,'#')
             else:
                 grid.update_cell(x,y,'.')
 
             # Nouvelle position après déplacement
-            k,l = s.position()
+            k,l = s.position
             grid.update_cell(k, l, 'S')         # Place le mouton sur la grille
 
             # Si de l’herbe est présente, le mouton la mange
-            if grass[k][l]:
-                for g in grass[k][l]:
-                    if g.is_grown:
-                        s.graze()
-                        g.is_eaten()
+            if grass[l][k].grown:
+                s.graze()
+                grass[l][k].is_eaten()
 
             # Reproduction éventuelle
             if s.can_reproduce():
@@ -97,23 +94,23 @@ def main():
 
         # --- Mise à jour des loups ---
         for w in wolf:
-            w.age()
+            w.age
             x,y = w.position
 
             w.move(grid)
 
             # Mise à jour de la case quittée
-            if grass[x][y].is_grown():
+            if grass[x][y].grown:
                 grid.update_cell(x,y,'#')
             else:
                 grid.update_cell(x,y,'.')
 
-            k,l = w.position()
+            k,l = w.position
 
             # Si le loup a trouvé un mouton, il le mange
             if w.hunt():
                 for s in sheep:
-                    if s.position() == (k, l):
+                    if s.position == (k, l):
                         sheep.remove(s)
 
             # Reproduction éventuelle
