@@ -10,7 +10,7 @@ class grass:
     def __init__(self):
         pass
 
-def create_grass()
+def create_grass():
     return [[0] * GRID_SIZE for _ in range(GRID_SIZE)]
-    
+
     
