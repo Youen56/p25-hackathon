@@ -132,5 +132,4 @@ def main():
 
         nb_tours += 1
 
-if __name__ == "__main__":
-    main()
+main()
